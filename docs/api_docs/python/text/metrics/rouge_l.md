@@ -5,7 +5,10 @@
 
 # text.metrics.rouge_l
 
+<!-- Insert buttons and diff -->
+
 <table class="tfo-notebook-buttons tfo-api" align="left">
+
 </table>
 
 <a target="_blank" href="https://github.com/tensorflow/text/tree/master/tensorflow_text/python/metrics/text_similarity_metric_ops.py">View
@@ -13,13 +16,11 @@ source</a>
 
 Computes LCS-based similarity score between the hypotheses and references.
 
-```python
-text.metrics.rouge_l(
-    hypotheses,
-    references,
-    alpha=None
+<pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
+<code>text.metrics.rouge_l(
+    hypotheses, references, alpha=None
 )
-```
+</code></pre>
 
 <!-- Placeholder for "Used in" -->
 
@@ -41,16 +42,47 @@ Leaving alpha unset implies alpha=.5, which is the default in the official
 ROUGE-1.5.5.pl script. Setting alpha to a negative number triggers a
 compatibility mode with the tensor2tensor implementation of ROUGE-L.
 
-#### Args:
+<!-- Tabular view -->
+ <table class="responsive fixed orange">
+<colgroup><col width="214px"><col></colgroup>
+<tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
 
-*   <b>`hypotheses`</b>: A RaggedTensor with shape [N, (hyp_sentence_len)] and
-    integer or string values.
-*   <b>`references`</b>: A RaggedTensor with shape [N, (ref_sentence_len)] and
-    integer or string values.
-*   <b>`alpha`</b>: optional float parameter for weighting
+<tr>
+<td>
+`hypotheses`
+</td>
+<td>
+A RaggedTensor with shape [N, (hyp_sentence_len)] and integer or
+string values.
+</td>
+</tr><tr>
+<td>
+`references`
+</td>
+<td>
+A RaggedTensor with shape [N, (ref_sentence_len)] and integer or
+string values.
+</td>
+</tr><tr>
+<td>
+`alpha`
+</td>
+<td>
+optional float parameter for weighting
+</td>
+</tr>
+</table>
 
-#### Returns:
+<!-- Tabular view -->
+ <table class="responsive fixed orange">
+<colgroup><col width="214px"><col></colgroup>
+<tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>
+<tr class="alt">
+<td colspan="2">
+an (f_measure, p_measure, r_measure) tuple, where each element is a
+vector of floats with shape [N]. The i-th float in each vector contains
+the similarity measure of hypotheses[i] and references[i].
+</td>
+</tr>
 
-an (f_measure, p_measure, r_measure) tuple, where each element is a vector of
-floats with shape [N]. The i-th float in each vector contains the similarity
-measure of hypotheses[i] and references[i].
+</table>

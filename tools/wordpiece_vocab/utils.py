@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2019 TF.Text Authors.
+# Copyright 2020 TF.Text Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,10 +20,10 @@ from __future__ import division
 from __future__ import print_function
 import collections
 import apache_beam as beam
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 from tensorflow_text.python.ops.bert_tokenizer import BertTokenizer
 from tensorflow_text.python.ops.wordpiece_tokenizer import WordpieceTokenizer
-from tensorflow_text.tools.wordpiece_vocab import wordpiece_tokenizer_learner_lib as learner
+from wordpiece_vocab import wordpiece_tokenizer_learner_lib as learner
 
 
 class FilterTokensByLang(beam.DoFn):

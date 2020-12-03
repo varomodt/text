@@ -1,20 +1,28 @@
 <div itemscope itemtype="http://developers.google.com/ReferenceObject">
 <meta itemprop="name" content="text.Detokenizer" />
 <meta itemprop="path" content="Stable" />
+<meta itemprop="property" content="__init__"/>
 <meta itemprop="property" content="detokenize"/>
 </div>
 
 # text.Detokenizer
 
+<!-- Insert buttons and diff -->
+
 <table class="tfo-notebook-buttons tfo-api" align="left">
+
 </table>
 
 <a target="_blank" href="https://github.com/tensorflow/text/tree/master/tensorflow_text/python/ops/tokenization.py">View
 source</a>
 
-## Class `Detokenizer`
-
 Base class for detokenizer implementations.
+
+<pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
+<code>text.Detokenizer(
+    name=None
+)
+</code></pre>
 
 <!-- Placeholder for "Used in" -->
 
@@ -25,17 +33,39 @@ Base class for detokenizer implementations.
 <a target="_blank" href="https://github.com/tensorflow/text/tree/master/tensorflow_text/python/ops/tokenization.py">View
 source</a>
 
-```python
-detokenize(input)
-```
+<pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
+<code>@abc.abstractmethod</code>
+<code>detokenize(
+    input
+)
+</code></pre>
 
-Tokenizes the input tensor.
+Assembles the tokens in the input tensor into a human-consumable string.
 
-#### Args:
+<!-- Tabular view -->
+ <table class="responsive fixed orange">
+<colgroup><col width="214px"><col></colgroup>
+<tr><th colspan="2">Args</th></tr>
 
-*   <b>`input`</b>: An N-dimensional UTF-8 string (or optionally integer)
-    `Tensor` or `RaggedTensor`.
+<tr>
+<td>
+`input`
+</td>
+<td>
+An N-dimensional UTF-8 string (or optionally integer) `Tensor` or
+`RaggedTensor`.
+</td>
+</tr>
+</table>
 
-#### Returns:
+<!-- Tabular view -->
+ <table class="responsive fixed orange">
+<colgroup><col width="214px"><col></colgroup>
+<tr><th colspan="2">Returns</th></tr>
+<tr class="alt">
+<td colspan="2">
+An (N-1)-dimensional UTF-8 string `Tensor` or `RaggedTensor`.
+</td>
+</tr>
 
-An (N-1)-dimensional UTF-8 string or integer `Tensor` or `RaggedTensor`.
+</table>

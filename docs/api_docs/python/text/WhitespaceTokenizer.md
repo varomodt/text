@@ -1,23 +1,29 @@
 <div itemscope itemtype="http://developers.google.com/ReferenceObject">
 <meta itemprop="name" content="text.WhitespaceTokenizer" />
 <meta itemprop="path" content="Stable" />
+<meta itemprop="property" content="__init__"/>
 <meta itemprop="property" content="tokenize"/>
 <meta itemprop="property" content="tokenize_with_offsets"/>
 </div>
 
 # text.WhitespaceTokenizer
 
+<!-- Insert buttons and diff -->
+
 <table class="tfo-notebook-buttons tfo-api" align="left">
+
 </table>
 
 <a target="_blank" href="https://github.com/tensorflow/text/tree/master/tensorflow_text/python/ops/whitespace_tokenizer.py">View
 source</a>
 
-## Class `WhitespaceTokenizer`
-
 Tokenizes a tensor of UTF-8 strings on whitespaces.
 
 Inherits From: [`TokenizerWithOffsets`](../text/TokenizerWithOffsets.md)
+
+<pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
+<code>text.WhitespaceTokenizer()
+</code></pre>
 
 <!-- Placeholder for "Used in" -->
 
@@ -28,47 +34,87 @@ Inherits From: [`TokenizerWithOffsets`](../text/TokenizerWithOffsets.md)
 <a target="_blank" href="https://github.com/tensorflow/text/tree/master/tensorflow_text/python/ops/whitespace_tokenizer.py">View
 source</a>
 
-```python
-tokenize(input)
-```
+<pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
+<code>tokenize(
+    input
+)
+</code></pre>
 
 Tokenizes a tensor of UTF-8 strings on whitespaces.
 
 The strings are split on ICU defined whitespace characters. These whitespace
 characters are dropped.
 
-#### Args:
+<!-- Tabular view -->
+ <table class="responsive fixed orange">
+<colgroup><col width="214px"><col></colgroup>
+<tr><th colspan="2">Args</th></tr>
 
-*   <b>`input`</b>: A `RaggedTensor` or `Tensor` of UTF-8 strings with any
-    shape.
+<tr>
+<td>
+`input`
+</td>
+<td>
+A `RaggedTensor` or `Tensor` of UTF-8 strings with any shape.
+</td>
+</tr>
+</table>
 
-#### Returns:
+<!-- Tabular view -->
+ <table class="responsive fixed orange">
+<colgroup><col width="214px"><col></colgroup>
+<tr><th colspan="2">Returns</th></tr>
+<tr class="alt">
+<td colspan="2">
+A `RaggedTensor` of tokenized text. The returned shape is the shape of the
+input tensor with an added ragged dimension for tokens of each string.
+</td>
+</tr>
 
-A `RaggedTensor` of tokenized text. The returned shape is the shape of the input
-tensor with an added ragged dimension for tokens of each string.
+</table>
 
 <h3 id="tokenize_with_offsets"><code>tokenize_with_offsets</code></h3>
 
 <a target="_blank" href="https://github.com/tensorflow/text/tree/master/tensorflow_text/python/ops/whitespace_tokenizer.py">View
 source</a>
 
-```python
-tokenize_with_offsets(input)
-```
+<pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
+<code>tokenize_with_offsets(
+    input
+)
+</code></pre>
 
 Tokenizes a tensor of UTF-8 strings on whitespaces.
 
 The strings are split on ICU defined whitespace characters. These whitespace
 characters are dropped.
 
-#### Args:
+<!-- Tabular view -->
+ <table class="responsive fixed orange">
+<colgroup><col width="214px"><col></colgroup>
+<tr><th colspan="2">Args</th></tr>
 
-*   <b>`input`</b>: A `RaggedTensor`or `Tensor` of UTF-8 strings with any shape.
+<tr>
+<td>
+`input`
+</td>
+<td>
+A `RaggedTensor`or `Tensor` of UTF-8 strings with any shape.
+</td>
+</tr>
+</table>
 
-#### Returns:
-
+<!-- Tabular view -->
+ <table class="responsive fixed orange">
+<colgroup><col width="214px"><col></colgroup>
+<tr><th colspan="2">Returns</th></tr>
+<tr class="alt">
+<td colspan="2">
 A tuple `(tokens, start_offsets, limit_offsets)` where:
 
 *   `tokens`: A `RaggedTensor` of tokenized text.
 *   `start_offsets`: A `RaggedTensor` of the tokens' starting byte offset.
-*   `limit_offsets`: A `RaggedTensor` of the tokens' ending byte offset.
+*   `limit_offsets`: A `RaggedTensor` of the tokens' ending byte offset. </td>
+    </tr>
+
+</table>

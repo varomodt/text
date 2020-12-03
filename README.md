@@ -1,10 +1,36 @@
 # TensorFlow Text - Text processing in Tensorflow
 
+IMPORTANT: When installing TF Text with `pip install`, please note the version
+of TensorFlow you are running, as you should specify the corresponding minor
+version of TF Text (eg. for tensorflow==2.3.x use tensorflow_text==2.3.x).
+
 [![GitHub
 Issues](https://img.shields.io/github/issues/tensorflow/text.svg)](https://github.com/tensorflow/text/issues)
 [![Contributions
 welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg)](CONTRIBUTING.md)
 [![License](https://img.shields.io/badge/License-Apache%202.0-brightgreen.svg)](https://opensource.org/licenses/Apache-2.0)
+
+**UPDATE (8/28/2020):** See [RFC 283](https://github.com/tensorflow/community/pull/283)
+for upcoming changes and new APIs in TF.Text.
+
+## INDEX
+* [Introduction](#introduction)
+* [Eager Execution](#eager-execution)
+* [Unicode](#unicode)
+* [Normalization](#normalization)
+* [Tokenization](#tokenization)
+  * [Whitespace Tokenizer](#whitespacetokenizer)
+  * [UnicodeScript Tokenizer](#unicodescripttokenizer)
+  * [Unicode split](#unicode-split)
+  * [Offsets](#offsets)
+  * [TF.Data Example](#tfdata-example)
+  * [Keras API](#keras-api)
+* [Other Text Ops](#other-text-ops)
+  * [Wordshape](#wordshape)
+  * [N-grams & Sliding Window](#n-grams--sliding-window)
+* [Installation](#installation)
+  * [Install using PIP](#install-using-pip)
+  * [Build from source steps:](#build-from-source-steps)
 
 ## Introduction
 
@@ -141,17 +167,18 @@ print(tokens.to_list())
 When tokenizing strings, it is often desired to know where in the original
 string the token originated from. For this reason, each tokenizer which
 implements `TokenizerWithOffsets` has a *tokenize_with_offsets* method that will
-return the byte offsets along with the tokens. The offset_starts lists the bytes
-in the original string each token starts at, and the offset_limits lists the
-bytes where each token ends at.
+return the byte offsets along with the tokens. The start_offsets lists the bytes
+in the original string each token starts at (inclusive), and the end_offsets
+lists the bytes where each token ends at (exclusive, i.e., first byte *after*
+the token).
 
 ```python
 tokenizer = text.UnicodeScriptTokenizer()
-(tokens, offset_starts, offset_limits) = tokenizer.tokenize_with_offsets(
+(tokens, start_offsets, end_offsets) = tokenizer.tokenize_with_offsets(
     ['everything not saved will be lost.', u'Sad☹'.encode('UTF-8')])
 print(tokens.to_list())
-print(offset_starts.to_list())
-print(offset_limits.to_list())
+print(start_offsets.to_list())
+print(end_offsets.to_list())
 ```
 
 ```sh
@@ -272,6 +299,26 @@ print(bigrams.to_list())
 
 ### Install using PIP
 
+When installing TF Text with `pip install`, please note the version
+of TensorFlow you are running, as you should specify the corresponding version
+of TF Text. For example, if you're using TF 2.0, install the 2.0 version of TF
+Text, and if you're using TF 1.15, install the 1.15 version of TF Text.
+
 ```bash
-pip install -U tensorflow-text
+pip install -U tensorflow-text==<version>
 ```
+
+### Build from source steps:
+
+Note that TF Text needs to be built in the same environment as TensorFlow. Thus,
+if you manually build TF Text, it is highly recommended that you also build
+TensorFlow.
+
+If building on MacOS, you must have coreutils installed. It is probably easiest
+to do with Homebrew.
+
+1. [build and install TensorFlow](https://www.tensorflow.org/install/source).
+1. Clone the TF Text repo:
+   `git clone https://github.com/tensorflow/text.git`
+1. Run the build script to create a pip package:
+   `./oss_scripts/run_build.sh`

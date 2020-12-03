@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2019 TF.Text Authors.
+# Copyright 2020 TF.Text Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,13 +20,15 @@ from __future__ import division
 from __future__ import print_function
 from absl import app
 from absl import flags
-from tensorflow_text.tools.wordpiece_vocab import wordpiece_tokenizer_learner_lib as learner
+from wordpiece_vocab import wordpiece_tokenizer_learner_lib as learner
 
 
 FLAGS = flags.FLAGS
 
 flags.DEFINE_string('input_path', None, 'Path to wordcount file.')
+flags.mark_flag_as_required('input_path', FLAGS)
 flags.DEFINE_string('output_path', None, 'Path to vocab file.')
+flags.mark_flag_as_required('output_path', FLAGS)
 
 flags.DEFINE_integer('upper_thresh', 10000000,
                      'Upper threshold for binary search.')
@@ -67,14 +69,19 @@ def main(_):
     padded_tokens += ['<pad%d>' % i for i in range(1, FLAGS.num_pad_tokens)]
     reserved_tokens = padded_tokens + reserved_tokens
 
-  params = learner.Params(FLAGS.upper_thresh, FLAGS.lower_thresh,
-                          FLAGS.num_iterations, FLAGS.max_input_tokens,
-                          FLAGS.max_token_length, FLAGS.max_unique_chars,
-                          FLAGS.vocab_size, FLAGS.slack_ratio,
-                          FLAGS.include_joiner_token, FLAGS.joiner,
-                          reserved_tokens)
-
-  vocab = learner.learn(word_counts, params)
+  vocab = learner.learn(
+      word_counts,
+      vocab_size=FLAGS.vocab_size,
+      reserved_tokens=reserved_tokens,
+      upper_thresh=FLAGS.upper_thresh,
+      lower_thresh=FLAGS.lower_thresh,
+      num_iterations=FLAGS.num_iterations,
+      max_input_tokens=FLAGS.max_input_tokens,
+      max_token_length=FLAGS.max_token_length,
+      max_unique_chars=FLAGS.max_unique_chars,
+      slack_ratio=FLAGS.slack_ratio,
+      include_joiner_token=FLAGS.include_joiner_token,
+      joiner=FLAGS.joiner)
   vocab = ''.join([line + '\n' for line in vocab])
 
   # Write vocab to file.

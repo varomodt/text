@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2019 TF.Text Authors.
+# Copyright 2020 TF.Text Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,33 +22,47 @@ from tensorflow_text.python import metrics
 from tensorflow_text.python.ops import *
 
 
-# Public symbols in the "tensorflow_text" package.
+# Public symbols in the "tensorflow_text" package.  Symbols are sorted in
+# increasing order of their lowercase version.
 _allowed_symbols = [
     "BertTokenizer",
     "case_fold_utf8",
     "coerce_to_structurally_valid_utf8",
     "Detokenizer",
+    "find_source_offsets",
     "gather_with_default",
     "greedy_constrained_sequence",
+    "HubModuleSplitter",
+    "HubModuleTokenizer",
     "keras",
+    "max_spanning_tree",
+    "max_spanning_tree_gradient",
     "metrics",
     "ngrams",
     "normalize_utf8",
+    "normalize_utf8_with_offsets_map",
     "pad_along_dimension",
     "Reduction",
+    "regex_split",
+    "regex_split_with_offsets",
     "sentence_fragments",
     "SentencepieceTokenizer",
     "sliding_window",
     "span_alignment",
     "span_overlaps",
+    "SplitMergeFromLogitsTokenizer",
+    "SplitMergeTokenizer",
+    "Splitter",
+    "StateBasedSentenceBreaker",
     "Tokenizer",
     "TokenizerWithOffsets",
+    "UnicodeCharTokenizer",
     "UnicodeScriptTokenizer",
     "viterbi_constrained_sequence",
     "WhitespaceTokenizer",
+    "WordpieceTokenizer",
     "wordshape",
     "WordShape",
-    "WordpieceTokenizer",
 ]
 
 remove_undocumented(__name__, _allowed_symbols)

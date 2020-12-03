@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2019 TF.Text Authors.
+# Copyright 2020 TF.Text Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ from setuptools.command.install import install
 from setuptools.dist import Distribution
 
 project_name = 'tensorflow-text'
-project_version = '2.0.0-rc0'
+project_version = '2.3.0'
 
 
 class BinaryDistribution(Distribution):
@@ -73,19 +73,21 @@ setup(
     cmdclass={'install': InstallPlatlib},
     distclass=BinaryDistribution,
     install_requires=[
-        'tensorflow>=2.0.0, <2.1',
+        'tensorflow>=2.3.0, <2.4',
+        'tensorflow_hub>=0.8.0',
     ],
     extras_require={
-        'tensorflow_gpu': [
-            'tensorflow-gpu>=2.0.0, <2.1',
+        'tensorflow_cpu': [
+            'tensorflow-cpu>=2.3.0, <2.4',
         ],
         'tests': [
             'absl-py',
             'pytest',
+            'tensorflow-datasets>=3.2.0',
         ],
     },
     classifiers=[
-        'Development Status :: 4 - Beta',
+        'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',
         'Intended Audience :: Science/Research',
         'License :: OSI Approved :: Apache Software License',

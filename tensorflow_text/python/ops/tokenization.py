@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2019 TF.Text Authors.
+# Copyright 2020 TF.Text Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Base classes (abstract class) for all tokenizers."""
+"""Abstract base classes for all tokenizers."""
 
 from __future__ import absolute_import
 from __future__ import division
@@ -21,12 +21,13 @@ from __future__ import print_function
 
 import abc
 
+from tensorflow.python.module import module
+from tensorflow_text.python.ops.splitter import Splitter
+from tensorflow_text.python.ops.splitter import SplitterWithOffsets
 
-# TODO(broken): Have this extend Module when it becomes public
-class Tokenizer(object):
+
+class Tokenizer(Splitter):
   """Base class for tokenizer implementations."""
-
-  __metaclass__ = abc.ABCMeta
 
   @abc.abstractmethod
   def tokenize(self, input):  # pylint: disable=redefined-builtin
@@ -41,8 +42,11 @@ class Tokenizer(object):
     """
     raise NotImplementedError("Abstract method")
 
+  def split(self, input):  # pylint: disable=redefined-builtin
+    return self.tokenize(input)
 
-class TokenizerWithOffsets(Tokenizer):
+
+class TokenizerWithOffsets(Tokenizer, SplitterWithOffsets):
   """Base class for tokenizer implementations that return offsets."""
 
   @abc.abstractmethod
@@ -54,35 +58,37 @@ class TokenizerWithOffsets(Tokenizer):
         `RaggedTensor`.
 
     Returns:
-      A tuple `(tokens, start_offsets, limit_offsets)` where:
+      A tuple `(tokens, start_offsets, end_offsets)` where:
 
         * `tokens` is an N+1-dimensional UTF-8 string or integer `Tensor` or
             `RaggedTensor`.
         * `start_offsets` is an N+1-dimensional integer `Tensor` or
             `RaggedTensor` containing the starting indices of each token (byte
             indices for input strings).
-        * `limit_offsets` is an N+1-dimensional integer `Tensor` or
+        * `end_offsets` is an N+1-dimensional integer `Tensor` or
             `RaggedTensor` containing the exclusive ending indices of each token
             (byte indices for input strings).
     """
     raise NotImplementedError("Abstract method")
 
+  def split_with_offsets(self, input):  # pylint: disable=redefined-builtin
+    return self.tokenize_with_offsets(input)
 
-# TODO(broken): Have this extend Module when it becomes public
-class Detokenizer(object):
+
+class Detokenizer(module.Module):
   """Base class for detokenizer implementations."""
 
   __metaclass__ = abc.ABCMeta
 
   @abc.abstractmethod
   def detokenize(self, input):  # pylint: disable=redefined-builtin
-    """Tokenizes the input tensor.
+    """Assembles the tokens in the input tensor into a human-consumable string.
 
     Args:
       input: An N-dimensional UTF-8 string (or optionally integer) `Tensor` or
         `RaggedTensor`.
 
     Returns:
-      An (N-1)-dimensional UTF-8 string or integer `Tensor` or `RaggedTensor`.
+      An (N-1)-dimensional UTF-8 string `Tensor` or `RaggedTensor`.
     """
     raise NotImplementedError("Abstract method")

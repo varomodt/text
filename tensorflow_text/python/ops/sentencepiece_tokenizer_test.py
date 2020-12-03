@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2019 TF.Text Authors.
+# Copyright 2020 TF.Text Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,50 +13,59 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# coding=utf-8
 """Tests for SentencePieceProcessor Tensorflow op."""
 
-import os
 import sys
+import tempfile
 from absl.testing import parameterized
-import sentencepiece as sentencepiece_processor
+from tensorflow.python.data.ops import dataset_ops
+from tensorflow.python.eager import context
+from tensorflow.python.eager import def_function
 from tensorflow.python.framework import constant_op
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import errors
+from tensorflow.python.framework import tensor_spec
 from tensorflow.python.framework import test_util
+from tensorflow.python.lib.io import file_io
+from tensorflow.python.module import module
 from tensorflow.python.ops.ragged import ragged_factory_ops
 from tensorflow.python.platform import gfile
-from tensorflow_text.python.ops import ragged_test_util
+from tensorflow.python.platform import test
+from tensorflow.python.saved_model import load
+from tensorflow.python.saved_model import save
 from tensorflow_text.python.ops.sentencepiece_tokenizer import SentencepieceTokenizer
 
-from google3.pyglib import flags
-from google3.testing.pybase import googletest
 
-FLAGS = flags.FLAGS
+def _utf8(tokens):
+  if sys.version_info[0] == 2:
+    return tokens
+  if isinstance(tokens, list):
+    return [_utf8(t) for t in tokens]
+  else:
+    return tokens.encode('utf-8')
+
+
+class TestSavedModelModule(module.Module):
+
+  def __init__(self, tokenizer):
+    self.tokenizer = tokenizer
+
+  @def_function.function(input_signature=[
+      tensor_spec.TensorSpec(shape=[None], dtype=dtypes.string)
+  ])
+  def tokenize(self, inputs):
+    return self.tokenizer.tokenize(inputs)
 
 
 @test_util.run_all_in_graph_and_eager_modes
-class SentencepieceTokenizerOpTest(ragged_test_util.RaggedTensorTestCase,
+class SentencepieceTokenizerOpTest(test_util.TensorFlowTestCase,
                                    parameterized.TestCase):
 
-  def encodeTokens(self, tokens):
-    if sys.version_info[0] == 2:
-      return tokens
-    if isinstance(tokens, list):
-      return [self.encodeTokens(t) for t in tokens]
-    else:
-      return tokens.encode('utf-8')
-
   def getTokenizerAndSetOptions(self, reverse, add_bos, add_eos, out_type):
-    options = []
-    if add_bos:
-      options.append('bos')
-    if add_eos:
-      options.append('eos')
-    if reverse:
-      options.append('reverse')
-    self.processor.SetEncodeExtraOptions(':'.join(options))
-    self.processor.SetDecodeExtraOptions(':'.join(options))
+    self.reverse = reverse
+    self.add_bos = add_bos
+    self.add_eos = add_eos
+    self.out_type = out_type
     return SentencepieceTokenizer(
         self.model,
         reverse=reverse,
@@ -64,55 +73,92 @@ class SentencepieceTokenizerOpTest(ragged_test_util.RaggedTensorTestCase,
         add_eos=add_eos,
         out_type=out_type)
 
+  def transformExpected(self, expected, is_offsets=False):
+    bos = _utf8('<s>')
+    eos = _utf8('</s>')
+    if is_offsets:
+      bos = 0
+      eos = 0
+    elif self.out_type == dtypes.int32:
+      bos = 1
+      eos = 2
+    if not isinstance(expected[0], list):
+      if self.add_bos:
+        expected = [bos] + expected
+      if self.add_eos:
+        expected = expected + [eos]
+      if self.reverse:
+        expected = [x for x in reversed(expected)]
+    else:
+      return [self.transformExpected(x) for x in expected]
+    return expected
+
   def setUp(self):
     super(SentencepieceTokenizerOpTest, self).setUp()
-    sentencepiece_model_file = os.path.join(
-        FLAGS.test_srcdir,
-        'google3/third_party/tensorflow_text/python/ops/test_data/test_oss_model.model'
-    )
+    sentencepiece_model_file = (
+        'tensorflow_text/python/ops/test_data/'
+        'test_oss_model.model')
     self.model = gfile.GFile(sentencepiece_model_file, 'rb').read()
-
-    # Open source python version of the Sentencepiece processor
-    self.processor = sentencepiece_processor.SentencePieceProcessor()
-    self.processor.Load(sentencepiece_model_file)
 
   def testGetVocabSize(self):
     sp = SentencepieceTokenizer(self.model)
-    self.assertAllEqual(self.processor.GetPieceSize(), sp.vocab_size())
+    self.assertAllEqual(1000, sp.vocab_size())
 
   def testIdToStringScalar(self):
     sp = SentencepieceTokenizer(self.model)
-    piece = self.encodeTokens(self.processor.EncodeAsPieces('I love lamp.')[0])
-    result = sp.id_to_string(self.processor.PieceToId(piece))
-    self.assertAllEqual(piece, result)
+    result = sp.id_to_string(125)
+    self.assertAllEqual('ve', result)
 
   def testIdToStringVector(self):
     sp = SentencepieceTokenizer(self.model)
-    sentences = [b'I love carpet', b'I love desk.', b'I love lamp.']
-    ids = []
-    pieces = []
-    for s in sentences:
-      pieces.append(self.encodeTokens(self.processor.EncodeAsPieces(s)))
-      ids.append(self.processor.EncodeAsIds(s))
+    pieces = _utf8([['▁I', '▁l', 'o', 've', '▁c', 'ar', 'pe', 't'],
+                    ['▁I', '▁l', 'o', 've', '▁desk', '.'],
+                    ['▁I', '▁l', 'o', 've', '▁l', 'amp', '.']])
+    ids = [[9, 169, 21, 125, 78, 48, 132, 15], [9, 169, 21, 125, 727, 6],
+           [9, 169, 21, 125, 169, 579, 6]]
     result = sp.id_to_string(ragged_factory_ops.constant(ids))
     self.assertAllEqual(pieces, result)
 
   def testIdToStringRagged(self):
     sp = SentencepieceTokenizer(self.model)
-    sentences = [[b'I love carpet', b'I love desk.', b'I love lamp.'],
-                 [b'Never tell me the odds']]
-    ids = []
-    pieces = []
-    for row in sentences:
-      id_row = []
-      piece_row = []
-      for s in row:
-        piece_row.append(self.encodeTokens(self.processor.EncodeAsPieces(s)))
-        id_row.append(self.processor.EncodeAsIds(s))
-      ids.append(id_row)
-      pieces.append(piece_row)
+    pieces = _utf8(
+        [[['▁I', '▁l', 'o', 've', '▁c', 'ar', 'pe', 't'],
+          ['▁I', '▁l', 'o', 've', '▁desk', '.'],
+          ['▁I', '▁l', 'o', 've', '▁l', 'amp', '.']],
+         [['▁', 'N', 'ever', '▁tell', '▁me', '▁the', '▁', 'o', 'd', 'd', 's']]])
+    ids = [[[9, 169, 21, 125, 78, 48, 132, 15], [9, 169, 21, 125, 727, 6],
+            [9, 169, 21, 125, 169, 579, 6]],
+           [[4, 199, 363, 310, 33, 7, 4, 21, 17, 17, 8]]]
     result = sp.id_to_string(ragged_factory_ops.constant(ids, dtypes.int32))
-    self.assertRaggedEqual(pieces, result)
+    self.assertAllEqual(pieces, result)
+
+  def testStringToIdScalar(self):
+    sp = SentencepieceTokenizer(self.model)
+    result = sp.string_to_id('</s>')
+    self.assertAllEqual(2, result)
+
+  def testStringToIdVector(self):
+    sp = SentencepieceTokenizer(self.model)
+    pieces = _utf8([['▁I', '▁l', 'o', 've', '▁c', 'ar', 'pe', 't'],
+                    ['▁I', '▁l', 'o', 've', '▁desk', '.'],
+                    ['▁I', '▁l', 'o', 've', '▁l', 'amp', '.']])
+    ids = [[9, 169, 21, 125, 78, 48, 132, 15], [9, 169, 21, 125, 727, 6],
+           [9, 169, 21, 125, 169, 579, 6]]
+    result = sp.string_to_id(ragged_factory_ops.constant(pieces))
+    self.assertAllEqual(ids, result)
+
+  def testStringToIdRagged(self):
+    sp = SentencepieceTokenizer(self.model)
+    pieces = _utf8(
+        [[['▁I', '▁l', 'o', 've', '▁c', 'ar', 'pe', 't'],
+          ['▁I', '▁l', 'o', 've', '▁desk', '.'],
+          ['▁I', '▁l', 'o', 've', '▁l', 'amp', '.']],
+         [['▁', 'N', 'ever', '▁tell', '▁me', '▁the', '▁', 'o', 'd', 'd', 's']]])
+    ids = [[[9, 169, 21, 125, 78, 48, 132, 15], [9, 169, 21, 125, 727, 6],
+            [9, 169, 21, 125, 169, 579, 6]],
+           [[4, 199, 363, 310, 33, 7, 4, 21, 17, 17, 8]]]
+    result = sp.string_to_id(ragged_factory_ops.constant(pieces, dtypes.string))
+    self.assertAllEqual(ids, result)
 
   @parameterized.parameters([
       (False, False, False, dtypes.int32),
@@ -135,16 +181,17 @@ class SentencepieceTokenizerOpTest(ragged_test_util.RaggedTensorTestCase,
   def testTokenizeAndDetokenizeScalar(self, reverse, add_bos, add_eos,
                                       out_type):
     sp = self.getTokenizerAndSetOptions(reverse, add_bos, add_eos, out_type)
-    sentence = b'I love lamp.'
+    sentence = 'I love lamp.'
     expected = []
     if out_type == dtypes.int32:
-      expected = self.processor.EncodeAsIds(sentence)
+      expected = [9, 169, 21, 125, 169, 579, 6]
     else:
-      expected = self.encodeTokens(self.processor.EncodeAsPieces(sentence))
+      expected = _utf8(['▁I', '▁l', 'o', 've', '▁l', 'amp', '.'])
+    expected = self.transformExpected(expected)
     result = sp.tokenize(sentence)
-    self.assertRaggedEqual(expected, result)
+    self.assertAllEqual(expected, result)
     detokenized = sp.detokenize(result)
-    self.assertAllEqual(sentence, detokenized)
+    self.assertAllEqual(_utf8(sentence), detokenized)
 
   @parameterized.parameters([
       (False, False, False, dtypes.int32),
@@ -166,18 +213,20 @@ class SentencepieceTokenizerOpTest(ragged_test_util.RaggedTensorTestCase,
   ])
   def testTokenizeAndDetokenizeVec(self, reverse, add_bos, add_eos, out_type):
     sp = self.getTokenizerAndSetOptions(reverse, add_bos, add_eos, out_type)
-    sentences = [b'I love carpet', b'I love desk.', b'I love lamp.']
+    sentences = ['I love carpet', 'I love desk.', 'I love lamp.']
     expected = []
-    for s in sentences:
-      if out_type == dtypes.int32:
-        expected.append(self.processor.EncodeAsIds(s))
-      else:
-        pieces = self.processor.EncodeAsPieces(s)
-        expected.append(self.encodeTokens(pieces))
+    if out_type == dtypes.int32:
+      expected = [[9, 169, 21, 125, 78, 48, 132, 15], [9, 169, 21, 125, 727, 6],
+                  [9, 169, 21, 125, 169, 579, 6]]
+    else:
+      expected = _utf8([['▁I', '▁l', 'o', 've', '▁c', 'ar', 'pe', 't'],
+                        ['▁I', '▁l', 'o', 've', '▁desk', '.'],
+                        ['▁I', '▁l', 'o', 've', '▁l', 'amp', '.']])
+    expected = self.transformExpected(expected)
     result = sp.tokenize(sentences)
-    self.assertRaggedEqual(expected, result)
+    self.assertAllEqual(expected, result)
     detokenized = sp.detokenize(result)
-    self.assertAllEqual(sentences, detokenized)
+    self.assertAllEqual(_utf8(sentences), detokenized)
 
   @parameterized.parameters([
       (False, False, False, dtypes.int32),
@@ -200,22 +249,26 @@ class SentencepieceTokenizerOpTest(ragged_test_util.RaggedTensorTestCase,
   def testTokenizeAndDetokenizeUniformTensorMatrix(self, reverse, add_bos,
                                                    add_eos, out_type):
     sp = self.getTokenizerAndSetOptions(reverse, add_bos, add_eos, out_type)
-    sentences = [[b'I love carpet', b'I love desk.'],
-                 [b'I love lamp.', b'Never tell me the odds']]
+    sentences = [['I love carpet', 'I love desk.'],
+                 ['I love lamp.', 'Never tell me the odds']]
     expected = []
-    for row in sentences:
-      expected_row = []
-      for s in row:
-        if out_type == dtypes.int32:
-          expected_row.append(self.processor.EncodeAsIds(s))
-        else:
-          pieces = self.processor.EncodeAsPieces(s)
-          expected_row.append(self.encodeTokens(pieces))
-      expected.append(expected_row)
+    if out_type == dtypes.int32:
+      expected = [[[9, 169, 21, 125, 78, 48, 132, 15],
+                   [9, 169, 21, 125, 727, 6]],
+                  [[9, 169, 21, 125, 169, 579, 6],
+                   [4, 199, 363, 310, 33, 7, 4, 21, 17, 17, 8]]]
+    else:
+      expected = _utf8(
+          [[['▁I', '▁l', 'o', 've', '▁c', 'ar', 'pe', 't'],
+            ['▁I', '▁l', 'o', 've', '▁desk', '.']],
+           [['▁I', '▁l', 'o', 've', '▁l', 'amp', '.'],
+            ['▁', 'N', 'ever', '▁tell', '▁me', '▁the', '▁', 'o', 'd', 'd',
+             's']]])
+    expected = self.transformExpected(expected)
     result = sp.tokenize(constant_op.constant(sentences))
-    self.assertRaggedEqual(expected, result)
+    self.assertAllEqual(expected, result)
     detokenized = sp.detokenize(result)
-    self.assertAllEqual(sentences, detokenized)
+    self.assertAllEqual(_utf8(sentences), detokenized)
 
   @parameterized.parameters([
       (False, False, False, dtypes.int32),
@@ -238,166 +291,80 @@ class SentencepieceTokenizerOpTest(ragged_test_util.RaggedTensorTestCase,
   def testTokenizeAndDetokenizeRaggedMatrix(self, reverse, add_bos, add_eos,
                                             out_type):
     sp = self.getTokenizerAndSetOptions(reverse, add_bos, add_eos, out_type)
-    sentences = [[b'I love carpet', b'I love desk.', b'I love lamp.'],
-                 [b'Never tell me the odds']]
+    sentences = [['I love carpet', 'I love desk.', 'I love lamp.'],
+                 ['Never tell me the odds']]
     expected = []
-    for row in sentences:
-      expected_row = []
-      for s in row:
-        if out_type == dtypes.int32:
-          expected_row.append(self.processor.EncodeAsIds(s))
-        else:
-          pieces = self.processor.EncodeAsPieces(s)
-          expected_row.append(self.encodeTokens(pieces))
-      expected.append(expected_row)
+    if out_type == dtypes.int32:
+      expected = [[[9, 169, 21, 125, 78, 48, 132, 15],
+                   [9, 169, 21, 125, 727, 6], [9, 169, 21, 125, 169, 579, 6]],
+                  [[4, 199, 363, 310, 33, 7, 4, 21, 17, 17, 8]]]
+    else:
+      expected = _utf8(
+          [[['▁I', '▁l', 'o', 've', '▁c', 'ar', 'pe', 't'],
+            ['▁I', '▁l', 'o', 've', '▁desk', '.'],
+            ['▁I', '▁l', 'o', 've', '▁l', 'amp', '.']],
+           [['▁', 'N', 'ever', '▁tell', '▁me', '▁the', '▁', 'o', 'd', 'd',
+             's']]])
+    expected = self.transformExpected(expected)
     result = sp.tokenize(ragged_factory_ops.constant(sentences))
-    self.assertRaggedEqual(expected, result)
+    self.assertAllEqual(expected, result)
     detokenized = sp.detokenize(result)
-    self.assertRaggedEqual(sentences, detokenized)
+    self.assertAllEqual(_utf8(sentences), detokenized)
 
   @parameterized.parameters([
-      (
-          False,
-          False,
-          False,
-          dtypes.int32,
-          [0, 1, 3, 4, 6, 8, 11],
-          [1, 3, 4, 6, 8, 11, 12]),
-      (
-          False,
-          False,
-          True,
-          dtypes.int32,
-          [0, 1, 3, 4, 6, 8, 11, 0],
-          [1, 3, 4, 6, 8, 11, 12, 0]),
-      (
-          False,
-          True,
-          False,
-          dtypes.int32,
-          [0, 0, 1, 3, 4, 6, 8, 11],
-          [0, 1, 3, 4, 6, 8, 11, 12]),
-      (
-          False,
-          True,
-          True,
-          dtypes.int32,
-          [0, 0, 1, 3, 4, 6, 8, 11, 0],
-          [0, 1, 3, 4, 6, 8, 11, 12, 0]),
-      (
-          True,
-          False,
-          False,
-          dtypes.int32,
-          [11, 8, 6, 4, 3, 1, 0],
-          [12, 11, 8, 6, 4, 3, 1]),
-      (
-          True,
-          False,
-          True,
-          dtypes.int32,
-          [0, 11, 8, 6, 4, 3, 1, 0],
-          [0, 12, 11, 8, 6, 4, 3, 1]),
-      (
-          True,
-          True,
-          False,
-          dtypes.int32,
-          [11, 8, 6, 4, 3, 1, 0, 0],
-          [12, 11, 8, 6, 4, 3, 1, 0]),
-      (
-          True,
-          True,
-          True,
-          dtypes.int32,
-          [0, 11, 8, 6, 4, 3, 1, 0, 0],
-          [0, 12, 11, 8, 6, 4, 3, 1, 0]),
-      (
-          False,
-          False,
-          False,
-          dtypes.string,
-          [0, 1, 3, 4, 6, 8, 11],
-          [1, 3, 4, 6, 8, 11, 12]),
-      (
-          False,
-          False,
-          True,
-          dtypes.string,
-          [0, 1, 3, 4, 6, 8, 11, 0],
-          [1, 3, 4, 6, 8, 11, 12, 0]),
-      (
-          False,
-          True,
-          False,
-          dtypes.string,
-          [0, 0, 1, 3, 4, 6, 8, 11],
-          [0, 1, 3, 4, 6, 8, 11, 12]),
-      (
-          False,
-          True,
-          True,
-          dtypes.string,
-          [0, 0, 1, 3, 4, 6, 8, 11, 0],
-          [0, 1, 3, 4, 6, 8, 11, 12, 0]),
-      (
-          True,
-          False,
-          False,
-          dtypes.string,
-          [11, 8, 6, 4, 3, 1, 0],
-          [12, 11, 8, 6, 4, 3, 1]),
-      (
-          True,
-          False,
-          True,
-          dtypes.string,
-          [0, 11, 8, 6, 4, 3, 1, 0],
-          [0, 12, 11, 8, 6, 4, 3, 1]),
-      (
-          True,
-          True,
-          False,
-          dtypes.string,
-          [11, 8, 6, 4, 3, 1, 0, 0],
-          [12, 11, 8, 6, 4, 3, 1, 0]),
-      (
-          True,
-          True,
-          True,
-          dtypes.string,
-          [0, 11, 8, 6, 4, 3, 1, 0, 0],
-          [0, 12, 11, 8, 6, 4, 3, 1, 0]),
-  ])  # pyformat: disable
+      (False, False, False, dtypes.int32),
+      (False, False, True, dtypes.int32),
+      (False, True, False, dtypes.int32),
+      (False, True, True, dtypes.int32),
+      (True, False, False, dtypes.int32),
+      (True, False, True, dtypes.int32),
+      (True, True, False, dtypes.int32),
+      (True, True, True, dtypes.int32),
+      (False, False, False, dtypes.string),
+      (False, False, True, dtypes.string),
+      (False, True, False, dtypes.string),
+      (False, True, True, dtypes.string),
+      (True, False, False, dtypes.string),
+      (True, False, True, dtypes.string),
+      (True, True, False, dtypes.string),
+      (True, True, True, dtypes.string),
+  ])
   def testTokenizeAndDetokenizeWithOffsetsScalar(self, reverse, add_bos,
-                                                 add_eos, out_type,
-                                                 expected_starts,
-                                                 expected_limits):
+                                                 add_eos, out_type):
     sp = self.getTokenizerAndSetOptions(reverse, add_bos, add_eos, out_type)
     sentence = 'I love lamp.'
     expected_tok = []
+    expected_starts = [0, 1, 3, 4, 6, 8, 11]
+    expected_ends = [1, 3, 4, 6, 8, 11, 12]
     if out_type == dtypes.int32:
-      expected_tok = self.processor.EncodeAsIds(sentence)
+      expected_tok = [9, 169, 21, 125, 169, 579, 6]
     else:
-      expected_tok = self.encodeTokens(self.processor.EncodeAsPieces(sentence))
+      expected_tok = _utf8(['▁I', '▁l', 'o', 've', '▁l', 'amp', '.'])
+    expected_tok = self.transformExpected(expected_tok)
+    expected_starts = self.transformExpected(expected_starts, True)
+    expected_ends = self.transformExpected(expected_ends, True)
     (tokens, starts,
-     limits) = sp.tokenize_with_offsets(ragged_factory_ops.constant(sentence))
-    self.assertRaggedEqual(expected_tok, tokens)
-    self.assertRaggedEqual(expected_starts, starts)
-    self.assertRaggedEqual(expected_limits, limits)
+     ends) = sp.tokenize_with_offsets(ragged_factory_ops.constant(sentence))
+    self.assertAllEqual(expected_tok, tokens)
+    self.assertAllEqual(expected_starts, starts)
+    self.assertAllEqual(expected_ends, ends)
+    detokenized = sp.detokenize(tokens)
+    self.assertAllEqual(_utf8(sentence), detokenized)
 
   def testTokenizeAndDetokenizeWithOffsetsSingleElementVector(self):
     sp = SentencepieceTokenizer(self.model, out_type=dtypes.string)
     sentences = ['I love lamp.']
     expected_tokens = [['▁I', '▁l', 'o', 've', '▁l', 'amp', '.']]
-    expected_tokens = self.encodeTokens(expected_tokens)
+    expected_tokens = _utf8(expected_tokens)
     expected_starts = [[0, 1, 3, 4, 6, 8, 11]]
-    expected_limits = [[1, 3, 4, 6, 8, 11, 12]]
+    expected_ends = [[1, 3, 4, 6, 8, 11, 12]]
     (tokens, starts,
-     limits) = sp.tokenize_with_offsets(ragged_factory_ops.constant(sentences))
-    self.assertRaggedEqual(expected_tokens, tokens)
-    self.assertRaggedEqual(expected_starts, starts)
-    self.assertRaggedEqual(expected_limits, limits)
+     ends) = sp.tokenize_with_offsets(ragged_factory_ops.constant(sentences))
+    self.assertAllEqual(expected_tokens, tokens)
+    self.assertAllEqual(expected_starts, starts)
+    self.assertAllEqual(expected_ends, ends)
+    detokenized = sp.detokenize(tokens)
+    self.assertAllEqual(_utf8(sentences), detokenized)
 
   def testTokenizeAndDetokenizeWithOffsetsVector(self):
     sp = SentencepieceTokenizer(self.model, out_type=dtypes.string)
@@ -405,16 +372,18 @@ class SentencepieceTokenizerOpTest(ragged_test_util.RaggedTensorTestCase,
     expected_tokens = [['▁I', '▁l', 'o', 've', '▁c', 'ar', 'pe', 't', '.'],
                        ['▁I', '▁l', 'o', 've', '▁desk', '.'],
                        ['▁I', '▁l', 'o', 've', '▁l', 'amp', '.']]
-    expected_tokens = self.encodeTokens(expected_tokens)
+    expected_tokens = _utf8(expected_tokens)
     expected_starts = [[0, 1, 3, 4, 6, 8, 10, 12, 13], [0, 1, 3, 4, 6, 11],
                        [0, 1, 3, 4, 6, 8, 11]]
-    expected_limits = [[1, 3, 4, 6, 8, 10, 12, 13, 14], [1, 3, 4, 6, 11, 12],
-                       [1, 3, 4, 6, 8, 11, 12]]
+    expected_ends = [[1, 3, 4, 6, 8, 10, 12, 13, 14], [1, 3, 4, 6, 11, 12],
+                     [1, 3, 4, 6, 8, 11, 12]]
     (tokens, starts,
-     limits) = sp.tokenize_with_offsets(ragged_factory_ops.constant(sentences))
-    self.assertRaggedEqual(expected_tokens, tokens)
-    self.assertRaggedEqual(expected_starts, starts)
-    self.assertRaggedEqual(expected_limits, limits)
+     ends) = sp.tokenize_with_offsets(ragged_factory_ops.constant(sentences))
+    self.assertAllEqual(expected_tokens, tokens)
+    self.assertAllEqual(expected_starts, starts)
+    self.assertAllEqual(expected_ends, ends)
+    detokenized = sp.detokenize(tokens)
+    self.assertAllEqual(_utf8(sentences), detokenized)
 
   def testTokenizeAndDetokenizeWithOffsetsMatrix(self):
     sp = SentencepieceTokenizer(self.model, out_type=dtypes.string)
@@ -427,18 +396,20 @@ class SentencepieceTokenizerOpTest(ragged_test_util.RaggedTensorTestCase,
                            '▁', 'N', 'ever', '▁tell', '▁me', '▁the', '▁', 'o',
                            'd', 'd', 's'
                        ]]]
-    expected_tokens = self.encodeTokens(expected_tokens)
+    expected_tokens = _utf8(expected_tokens)
     expected_starts = [[[0, 1, 3, 4, 6, 8, 10, 12, 13], [0, 1, 3, 4, 6, 11],
                         [0, 1, 3, 4, 6, 8, 11]],
                        [[0, 0, 1, 5, 10, 13, 17, 18, 19, 20, 21]]]
-    expected_limits = [[[1, 3, 4, 6, 8, 10, 12, 13, 14], [1, 3, 4, 6, 11, 12],
-                        [1, 3, 4, 6, 8, 11, 12]],
-                       [[0, 1, 5, 10, 13, 17, 18, 19, 20, 21, 22]]]
+    expected_ends = [[[1, 3, 4, 6, 8, 10, 12, 13, 14], [1, 3, 4, 6, 11, 12],
+                      [1, 3, 4, 6, 8, 11, 12]],
+                     [[0, 1, 5, 10, 13, 17, 18, 19, 20, 21, 22]]]
     (tokens, starts,
-     limits) = sp.tokenize_with_offsets(ragged_factory_ops.constant(sentences))
-    self.assertRaggedEqual(expected_tokens, tokens)
-    self.assertRaggedEqual(expected_starts, starts)
-    self.assertRaggedEqual(expected_limits, limits)
+     ends) = sp.tokenize_with_offsets(ragged_factory_ops.constant(sentences))
+    self.assertAllEqual(expected_tokens, tokens)
+    self.assertAllEqual(expected_starts, starts)
+    self.assertAllEqual(expected_ends, ends)
+    detokenized = sp.detokenize(tokens)
+    self.assertAllEqual(_utf8(sentences), detokenized)
 
   @parameterized.parameters([
       (-1, 0.1, dtypes.int32),
@@ -451,11 +422,41 @@ class SentencepieceTokenizerOpTest(ragged_test_util.RaggedTensorTestCase,
   def testSampleTokenizeAndDetokenize(self, nbest_size, alpha, out_type):
     sp = SentencepieceTokenizer(
         self.model, nbest_size=nbest_size, alpha=alpha, out_type=out_type)
-    sentences = [[b'I love carpet', b'I love desk.', b'I love lamp.'],
-                 [b'Never tell me the odds']]
+    sentences = [['I love carpet', 'I love desk.', 'I love lamp.'],
+                 ['Never tell me the odds']]
     result = sp.tokenize(ragged_factory_ops.constant(sentences))
     detokenized = sp.detokenize(result)
-    self.assertRaggedEqual(sentences, detokenized)
+    self.assertAllEqual(_utf8(sentences), detokenized)
+
+  def testSavedModel(self):
+    sp = SentencepieceTokenizer(self.model)
+    test_module = TestSavedModelModule(sp)
+    inputs = constant_op.constant(['hello world'])
+    expected_result = test_module.tokenize(inputs)
+    temp_dir = tempfile.mkdtemp(dir=test.get_temp_dir())
+    save.save(test_module, temp_dir)
+    restored_model = load.load(temp_dir)
+    self.assertAllEqual(restored_model.tokenize(inputs), expected_result)
+    file_io.delete_recursively(temp_dir)
+
+  def testBasicPipeline(self):
+    if not context.executing_eagerly():
+      self.skipTest('testBasicPipeline only supported in eager mode.')
+
+    sp = SentencepieceTokenizer(self.model)
+
+    strings = ['hello', 'world']
+    dataset = dataset_ops.Dataset.from_tensor_slices(strings)
+    # Ensure we can map the tokenizer across the dataset.
+    dataset1 = dataset.map(sp.tokenize)
+    # Ensure there's no error with a second map call.
+    dataset2 = dataset.map(sp.tokenize)
+
+    expected = sp.tokenize(strings)
+    for i, result in enumerate(dataset1):
+      self.assertAllEqual(result, expected[i])
+    for i, result in enumerate(dataset2):
+      self.assertAllEqual(result, expected[i])
 
   def testEmptyModel(self):
     with self.cached_session():
@@ -467,10 +468,10 @@ class SentencepieceTokenizerOpTest(ragged_test_util.RaggedTensorTestCase,
   def testInvalidModel(self):
     with self.cached_session():
       with self.assertRaises(errors.InternalError):
-        sp = SentencepieceTokenizer(b'invalid model')
+        sp = SentencepieceTokenizer('invalid model')
         result = sp.tokenize('whatever')
         result.eval()
 
 
 if __name__ == '__main__':
-  googletest.main()
+  test.main()

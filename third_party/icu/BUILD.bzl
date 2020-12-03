@@ -32,6 +32,16 @@ cc_library(
     ],
 )
 
+alias(
+    name = "nfkc",
+    actual = ":common",
+)
+
+alias(
+    name = "nfkc_cf",
+    actual = ":common",
+)
+
 cc_library(
     name = "icuuc",
     srcs = glob(
@@ -68,6 +78,16 @@ cc_library(
     ],
     deps = [
         ":headers",
+    ],
+)
+
+cc_library(
+    name = "windows_static_link_data",
+    # Dynamic libraries currently not supported on Windows.
+    defines = ["U_STATIC_IMPLEMENTATION"],
+    linkopts = ["advapi32.lib"],
+    deps = [
+        "@org_tensorflow_text//third_party/icu/data:icu_normalization_data",
     ],
 )
 

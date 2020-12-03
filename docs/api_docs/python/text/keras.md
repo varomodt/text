@@ -5,15 +5,16 @@
 
 # Module: text.keras
 
+<!-- Insert buttons and diff -->
+
 <table class="tfo-notebook-buttons tfo-api" align="left">
+
 </table>
 
 <a target="_blank" href="https://github.com/tensorflow/text/tree/master/tensorflow_text/python/keras/__init__.py">View
 source</a>
 
 Tensorflow Text Layers for Keras API.
-
-<!-- Placeholder for "Used in" -->
 
 ## Modules
 

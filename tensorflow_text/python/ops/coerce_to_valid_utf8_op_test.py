@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2019 TF.Text Authors.
+# Copyright 2020 TF.Text Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@ class CoerceToUtf8Test(test.TestCase):
   def testCoercetoStructurallyValidOnInvalidInput(self):
     with self.test_session():
       utf8 = string_ops.coerce_to_structurally_valid_utf8([b"abc\xfd"])
-    self.assertAllEqual(utf8, [b"abc\xef\xbf\xbd"])
+    self.assertAllEqual(utf8, [u"abc�".encode("utf-8")])
 
   def testCoercetoStructurallyValidOnInvalidInputWithDefault(self):
     with self.test_session():

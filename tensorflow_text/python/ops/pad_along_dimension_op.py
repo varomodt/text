@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2019 TF.Text Authors.
+# Copyright 2020 TF.Text Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -66,6 +66,8 @@ def pad_along_dimension(data, axis=-1, left_pad=None, right_pad=None,
       size `I1...IM`.  If `data` is a `RaggedTensor`, then the returned tensor
       is a `RaggedTensor` with the same `ragged_rank`.
   """
+  data = ragged_tensor.convert_to_tensor_or_ragged_tensor(data, name="data")
+
   if not isinstance(axis, int):
     raise TypeError("axis must be an int; got %s" % type(axis).__name__)
 

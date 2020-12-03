@@ -5,81 +5,98 @@
 
 # text.sentence_fragments
 
+<!-- Insert buttons and diff -->
+
 <table class="tfo-notebook-buttons tfo-api" align="left">
+
 </table>
 
 <a target="_blank" href="https://github.com/tensorflow/text/tree/master/tensorflow_text/python/ops/sentence_breaking_ops.py">View
 source</a>
 
-Find the sentence fragments in a given text.
+Find the sentence fragments in a given text. (deprecated)
 
-``` python
-text.sentence_fragments(
-    token_word,
-    token_starts,
-    token_ends,
-    token_properties,
-    input_encoding='UTF-8',
-    errors='replace',
-    replacement_char=65533,
-    replace_control_characters=False
+<pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link">
+<code>text.sentence_fragments(
+    token_word, token_starts, token_ends, token_properties, input_encoding='UTF-8',
+    errors='replace', replacement_char=65533, replace_control_characters=False
 )
-```
+</code></pre>
 
 <!-- Placeholder for "Used in" -->
+
+Warning: THIS FUNCTION IS DEPRECATED. It will be removed in a future version.
+Instructions for updating: Deprecated, use 'HeuristicBasedSentenceBreaker'
+instead.
 
 A sentence fragment is a potential next sentence determined using
 deterministic heuristics based on punctuation, capitalization, and similar
 text attributes.
 
-#### Args:
+<!-- Tabular view -->
+ <table class="responsive fixed orange">
+<colgroup><col width="214px"><col></colgroup>
+<tr><th colspan="2"><h2 class="add-link">Args</h2></th></tr>
 
-*   <b>`token_word`</b>: A Tensor (w/ rank=2) or a RaggedTensor (w/
-    ragged_rank=1) containing the token strings.
-*   <b>`token_starts`</b>: A Tensor (w/ rank=2) or a RaggedTensor (w/
-    ragged_rank=1) containing offsets where the token starts.
-*   <b>`token_ends`</b>: A Tensor (w/ rank=2) or a RaggedTensor (w/
-    ragged_rank=1) containing offsets where the token ends.
-*   <b>`token_properties`</b>: A Tensor (w/ rank=2) or a RaggedTensor (w/
-    ragged_rank=1) containing a bitmask.
+<tr> <td> `token_word` </td> <td> A Tensor (w/ rank=2) or a RaggedTensor (w/
+ragged_rank=1) containing the token strings. </td> </tr><tr> <td> `token_starts`
+</td> <td> A Tensor (w/ rank=2) or a RaggedTensor (w/ ragged_rank=1) containing
+offsets where the token starts. </td> </tr><tr> <td> `token_ends` </td> <td> A
+Tensor (w/ rank=2) or a RaggedTensor (w/ ragged_rank=1) containing offsets where
+the token ends. </td> </tr><tr> <td> `token_properties` </td> <td> A Tensor (w/
+rank=2) or a RaggedTensor (w/ ragged_rank=1) containing a bitmask.
 
-    The values of the bitmask are:
+The values of the bitmask are:
 
-    *   0x01 (ILL_FORMED) - Text is ill-formed according to TextExtractor;
-        typically applies to all tokens of a paragraph that is too short or
-        lacks terminal punctuation. 0x40 (TITLE)
-    *   0x02 (HEADING)
-    *   0x04 (BOLD)
-    *   0x10 (UNDERLINED)
-    *   0x20 (LIST)
-    *   0x80 (EMOTICON)
-    *   0x100 (ACRONYM) - Token was identified by Lexer as an acronym. Lexer
-        identifies period-, hyphen-, and space-separated acronyms: "U.S.",
-        "U-S", and "U S". Lexer normalizes all three to "US", but the token word
-        field normalizes only space-separated acronyms.
-    *   0x200 (HYPERLINK) - Indicates that the token (or part of the token) is a
-        covered by at least one hyperlink. More information of the hyperlink is
-        stored in the first token covered by the hyperlink.
+*   0x01 (ILL_FORMED) - Text is ill-formed: typically applies to all tokens of a
+    paragraph that is too short or lacks terminal punctuation.
+*   0x02 (HEADING)
+*   0x04 (BOLD)
+*   0x10 (UNDERLINED)
+*   0x20 (LIST)
+*   0x40 (TITLE)
+*   0x80 (EMOTICON)
+*   0x100 (ACRONYM) - Token was identified as an acronym. Period-, hyphen-, and
+    space-separated acronyms: "U.S.", "U-S", and "U S".
+*   0x200 (HYPERLINK) - Indicates that the token (or part of the token) is
+    covered by at least one hyperlink. </td> </tr><tr> <td> `input_encoding`
+    </td> <td> String name for the unicode encoding that should be used to
+    decode each string. </td> </tr><tr> <td> `errors` </td> <td> Specifies the
+    response when an input string can't be converted using the indicated
+    encoding. One of:
 
-*   <b>`input_encoding`</b>: String name for the unicode encoding that should be
-    used to decode each string.
+*   `'strict'`: Raise an exception for any illegal substrings.
 
-*   <b>`errors`</b>: Specifies the response when an input string can't be
-    converted using the indicated encoding. One of:
+*   `'replace'`: Replace illegal substrings with `replacement_char`.
 
-    *   `'strict'`: Raise an exception for any illegal substrings.
-    *   `'replace'`: Replace illegal substrings with `replacement_char`.
-    *   `'ignore'`: Skip illegal substrings.
+*   `'ignore'`: Skip illegal substrings.
+    </td>
+    </tr><tr>
+    <td>
+    `replacement_char`
+    </td>
+    <td>
+    The replacement codepoint to be used in place of invalid
+    substrings in `input` when `errors='replace'`; and in place of C0 control
+    characters in `input` when `replace_control_characters=True`.
+    </td>
+    </tr><tr>
+    <td>
+    `replace_control_characters`
+    </td>
+    <td>
+    Whether to replace the C0 control characters
+    `(U+0000 - U+001F)` with the `replacement_char`.
+    </td>
+    </tr>
+    </table>
 
-*   <b>`replacement_char`</b>: The replacement codepoint to be used in place of
-    invalid substrings in `input` when `errors='replace'`; and in place of C0
-    control characters in `input` when `replace_control_characters=True`.
-
-*   <b>`replace_control_characters`</b>: Whether to replace the C0 control
-    characters `(U+0000 - U+001F)` with the `replacement_char`.
-
-#### Returns:
-
+<!-- Tabular view -->
+ <table class="responsive fixed orange">
+<colgroup><col width="214px"><col></colgroup>
+<tr><th colspan="2"><h2 class="add-link">Returns</h2></th></tr>
+<tr class="alt">
+<td colspan="2">
 A RaggedTensor of `fragment_start`, `fragment_end`, `fragment_properties`
 and `terminal_punc_token`.
 
@@ -91,7 +108,9 @@ and `terminal_punc_token`.
 *   3 = Has close parenthesis (e.g. "Mushrooms (they're fungi).")
 *   4 = Has sentential close parenthesis (e.g. "(Mushrooms are fungi!)")
 
-    `terminal_punc_token` is a RaggedTensor containing the index of terminal
-    punctuation token immediately following the last word in the fragment -- or
-    index of the last word itself, if it's an acronym (since acronyms include
-    the terminal punctuation). index of the terminal punctuation token.
+`terminal_punc_token` is a RaggedTensor containing the index of terminal
+punctuation token immediately following the last word in the fragment -- or
+index of the last word itself, if it's an acronym (since acronyms include the
+terminal punctuation). index of the terminal punctuation token. </td> </tr>
+
+</table>

@@ -12,38 +12,33 @@ http_archive(
     ],
 )
 
+# https://github.com/bazelbuild/bazel-skylib/releases
 http_archive(
     name = "bazel_skylib",
-    sha256 = "2ef429f5d7ce7111263289644d233707dba35e39696377ebab8b0bc701f7818e",
-    urls = ["https://github.com/bazelbuild/bazel-skylib/releases/download/0.8.0/bazel-skylib.0.8.0.tar.gz"],
+    sha256 = "1dde365491125a3db70731e25658dfdd3bc5dbdfd11b840b3e987ecf043c7ca0",
+    urls = [
+        "https://storage.googleapis.com/mirror.tensorflow.org/github.com/bazelbuild/bazel-skylib/releases/download/0.9.0/bazel_skylib-0.9.0.tar.gz",
+        "https://github.com/bazelbuild/bazel-skylib/releases/download/0.9.0/bazel_skylib-0.9.0.tar.gz",
+    ],
 )
 
 http_archive(
     name = "com_google_absl",
-    sha256 = "acd93f6baaedc4414ebd08b33bebca7c7a46888916101d8c0b8083573526d070",
-    strip_prefix = "abseil-cpp-43ef2148c0936ebf7cb4be6b19927a9d9d145b8f",
+    sha256 = "f368a8476f4e2e0eccf8a7318b98dafbe30b2600f4e3cf52636e5eb145aba06a",  # SHARED_ABSL_SHA
+    strip_prefix = "abseil-cpp-df3ea785d8c30a9503321a3d35ee7d35808f190d",
     urls = [
-        "https://github.com/abseil/abseil-cpp/archive/43ef2148c0936ebf7cb4be6b19927a9d9d145b8f.tar.gz",
+        "https://storage.googleapis.com/mirror.tensorflow.org/github.com/abseil/abseil-cpp/archive/df3ea785d8c30a9503321a3d35ee7d35808f190d.tar.gz",
+        "https://github.com/abseil/abseil-cpp/archive/df3ea785d8c30a9503321a3d35ee7d35808f190d.tar.gz",
     ],
 )
 
 http_archive(
-    name = "com_google_glog",
-    sha256 = "1ee310e5d0a19b9d584a855000434bb724aa744745d5b8ab1855c85bff8a8e21",
-    strip_prefix = "glog-028d37889a1e80e8a07da1b8945ac706259e5fd8",
+    name = "com_google_protobuf",
+    sha256 = "cfcba2df10feec52a84208693937c17a4b5df7775e1635c1e3baffc487b24c9b",
+    strip_prefix = "protobuf-3.9.2",
     urls = [
-        "https://mirror.bazel.build/github.com/google/glog/archive/028d37889a1e80e8a07da1b8945ac706259e5fd8.tar.gz",
-        "https://github.com/google/glog/archive/028d37889a1e80e8a07da1b8945ac706259e5fd8.tar.gz",
-    ],
-)
-
-http_archive(
-    name = "com_google_googletest",
-    sha256 = "ff7a82736e158c077e76188232eac77913a15dac0b22508c390ab3f88e6d6d86",
-    strip_prefix = "googletest-b6cd405286ed8635ece71c72f118e659f4ade3fb",
-    urls = [
-        "http://mirror.tensorflow.org/github.com/google/googletest/archive/b6cd405286ed8635ece71c72f118e659f4ade3fb.zip",
-        "https://github.com/google/googletest/archive/b6cd405286ed8635ece71c72f118e659f4ade3fb.zip",
+        "https://storage.googleapis.com/mirror.tensorflow.org/github.com/protocolbuffers/protobuf/archive/v3.9.2.zip",
+        "https://github.com/protocolbuffers/protobuf/archive/v3.9.2.zip",
     ],
 )
 
@@ -54,6 +49,8 @@ http_archive(
     urls = [
         "https://github.com/google/sentencepiece/archive/1.0.0.zip"
     ],
+    patches = ["//third_party/sentencepiece:processor.patch"],
+    patch_args = ["-p1"],
 )
 
 http_archive(
@@ -61,6 +58,7 @@ http_archive(
     strip_prefix = "icu-release-64-2",
     sha256 = "dfc62618aa4bd3ca14a3df548cd65fe393155edd213e49c39f3a30ccd618fc27",
     urls = [
+        "https://storage.googleapis.com/mirror.tensorflow.org/github.com/unicode-org/icu/archive/release-64-2.zip",
         "https://github.com/unicode-org/icu/archive/release-64-2.zip",
     ],
     build_file = "//third_party/icu:BUILD.bzl",
@@ -78,12 +76,35 @@ http_archive(
     ],
 )
 
+# NOTE: according to
+# https://docs.bazel.build/versions/master/external.html#transitive-dependencies
+# we should list the transitive dependencies of @org_tensorflow_hub in this
+# WORKSPACE file.  Still, all of them are already listed by tf_workspace() which
+# is called later in this file.
+http_archive(
+    name = "org_tensorflow_hub",
+    strip_prefix = "hub-0.8.0",
+    sha256 = "968af30c448d51c36501b68df2c916fb4a61007db3240adc9248fa3a9be2da6f",
+    urls = [
+        "https://github.com/tensorflow/hub/archive/v0.8.0.zip"
+    ],
+)
+
 http_archive(
     name = "org_tensorflow",
-    strip_prefix = "tensorflow-2.0.0",
-    sha256 = "4c13e99a2e5fdddc491e003304141f9d9060e11584499061b1b4224e500dc49a",
+    strip_prefix = "tensorflow-2.3.0",
+    sha256 = "1a6f24d9e3b1cf5cc55ecfe076d3a61516701bc045925915b26a9d39f4084c34",
     urls = [
-        "https://github.com/tensorflow/tensorflow/archive/v2.0.0.zip"
+        "https://github.com/tensorflow/tensorflow/archive/v2.3.0.zip"
+    ],
+)
+
+http_archive(
+    name = "org_tensorflow_datasets",
+    sha256 = "c6ff4e2306387f0ca45d4f616d9a1c5e79e02ef16d0a8958230a8049ea07fc98",
+    strip_prefix = "datasets-3.2.0",
+    urls = [
+        "https://github.com/tensorflow/datasets/archive/v3.2.0.zip",
     ],
 )
 
@@ -94,3 +115,9 @@ tf_workspace(tf_repo_name="@org_tensorflow")
 load("//third_party/tensorflow:tf_configure.bzl", "tf_configure")
 
 tf_configure(name = "local_config_tf")
+
+# Set up Android.
+load("@org_tensorflow//third_party/android:android_configure.bzl", "android_configure")
+android_configure(name="local_config_android")
+load("@local_config_android//:android.bzl", "android_workspace")
+android_workspace()

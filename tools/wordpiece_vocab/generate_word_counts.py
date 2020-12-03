@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2019 TF.Text Authors.
+# Copyright 2020 TF.Text Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,12 +22,12 @@ import tempfile
 from absl import app
 from absl import flags
 import apache_beam as beam
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 import tensorflow_transform as tft
 import tensorflow_transform.beam as tft_beam
 from tensorflow_transform.tf_metadata import dataset_metadata
 from tensorflow_transform.tf_metadata import dataset_schema
-from tensorflow_text.tools.wordpiece_vocab import utils
+from wordpiece_vocab import utils
 
 FLAGS = flags.FLAGS
 
@@ -44,7 +44,7 @@ flags.DEFINE_float(
     'smoothing_exponent', 0.5,
     'Exponent used in calculating exponential smoothing coefficients.')
 flags.DEFINE_integer('max_word_length', 50,
-                     'Keep only words shorter than max_word_length.')
+                     'Discard words of length greater than max_word_length.')
 
 
 def word_count(input_path, output_path, raw_metadata, min_token_frequency=2):

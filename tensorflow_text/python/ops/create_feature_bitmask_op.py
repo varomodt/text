@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2019 TF.Text Authors.
+# Copyright 2020 TF.Text Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,10 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Tokenize text ops.
-
-Uses the SAFT Tokenization library for sentence and word breaking
-"""
+"""Tokenize text ops."""
 
 from __future__ import absolute_import
 from __future__ import division

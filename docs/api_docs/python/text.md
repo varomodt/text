@@ -5,15 +5,16 @@
 
 # Module: text
 
+<!-- Insert buttons and diff -->
+
 <table class="tfo-notebook-buttons tfo-api" align="left">
+
 </table>
 
 <a target="_blank" href="https://github.com/tensorflow/text/tree/master/tensorflow_text/__init__.py">View
 source</a>
 
 Various tensorflow ops related to text-processing.
-
-<!-- Placeholder for "Used in" -->
 
 ## Modules
 
@@ -34,11 +35,17 @@ n-gram op.
 [`class SentencepieceTokenizer`](./text/SentencepieceTokenizer.md): Tokenizes a
 tensor of UTF-8 strings.
 
+[`class SplitMergeTokenizer`](./text/SplitMergeTokenizer.md): Tokenizes a tensor
+of UTF-8 string into words according to labels.
+
 [`class Tokenizer`](./text/Tokenizer.md): Base class for tokenizer
 implementations.
 
 [`class TokenizerWithOffsets`](./text/TokenizerWithOffsets.md): Base class for
 tokenizer implementations that return offsets.
+
+[`class UnicodeCharTokenizer`](./text/UnicodeCharTokenizer.md): Tokenizes a
+tensor of UTF-8 strings on Unicode character boundaries.
 
 [`class UnicodeScriptTokenizer`](./text/UnicodeScriptTokenizer.md): Tokenizes a
 tensor of UTF-8 strings on Unicode script boundaries.
@@ -63,6 +70,12 @@ UTF-8 string in the input.
 
 [`greedy_constrained_sequence(...)`](./text/greedy_constrained_sequence.md): Performs greedy constrained sequence on a batch of examples.
 
+[`max_spanning_tree(...)`](./text/max_spanning_tree.md): Finds the maximum
+directed spanning tree of a digraph.
+
+[`max_spanning_tree_gradient(...)`](./text/max_spanning_tree_gradient.md):
+Returns a subgradient of the MaximumSpanningTree op.
+
 [`ngrams(...)`](./text/ngrams.md): Create a tensor of n-grams based on the input data `data`.
 
 [`normalize_utf8(...)`](./text/normalize_utf8.md): Normalizes each UTF-8 string
@@ -70,7 +83,14 @@ in the input tensor using the specified rule.
 
 [`pad_along_dimension(...)`](./text/pad_along_dimension.md): Add padding to the beginning and end of data in a specific dimension.
 
-[`sentence_fragments(...)`](./text/sentence_fragments.md): Find the sentence fragments in a given text.
+[`regex_split(...)`](./text/regex_split.md): Split `input` by delimiters that
+match a regex pattern.
+
+[`regex_split_with_offsets(...)`](./text/regex_split_with_offsets.md): Split
+`input` by delimiters that match a regex pattern; returns offsets.
+
+[`sentence_fragments(...)`](./text/sentence_fragments.md): Find the sentence
+fragments in a given text. (deprecated)
 
 [`sliding_window(...)`](./text/sliding_window.md): Builds a sliding window for `data` with a specified width.
 

@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2019 TF.Text Authors.
+# Copyright 2020 TF.Text Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -28,8 +28,8 @@ import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-import tensorflow as tf
-from tensorflow_text.tools.wordpiece_vocab import utils
+import tensorflow.compat.v1 as tf
+from wordpiece_vocab import utils
 
 
 class FilterTokensByLangTest(absltest.TestCase):

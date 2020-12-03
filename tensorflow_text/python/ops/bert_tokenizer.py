@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2019 TF.Text Authors.
+# Copyright 2020 TF.Text Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,26 +14,56 @@
 # limitations under the License.
 
 """Basic tokenization ops for BERT preprocessing."""
-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import copy
+
+from tensorflow.python.eager import monitoring
 from tensorflow.python.framework import dtypes
 from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import string_ops
-from tensorflow.python.ops.ragged import ragged_string_ops
-from tensorflow_text.python.ops import wordshape_ops
+from tensorflow_text.python.ops import regex_split_ops
 from tensorflow_text.python.ops.normalize_ops import case_fold_utf8
 from tensorflow_text.python.ops.normalize_ops import normalize_utf8
-from tensorflow_text.python.ops.tokenization import Tokenizer
-from tensorflow_text.python.ops.unicode_script_tokenizer import UnicodeScriptTokenizer
+from tensorflow_text.python.ops.tokenization import TokenizerWithOffsets
 from tensorflow_text.python.ops.wordpiece_tokenizer import WordpieceTokenizer
 
+_tf_text_bert_tokenizer_op_create_counter = monitoring.Counter(
+    "/nlx/api/python/bert_tokenizer_create_counter",
+    "Counter for number of BertTokenizers created in Python.")
 
-class BasicTokenizer(Tokenizer):
-  """Basic tokenizer for for tokenizing text.
+_DELIM_REGEX = [
+    r"\s+",
+    r"|".join([
+        r"[!-/]",
+        r"[:-@]",
+        r"[\[-`]",
+        r"[{-~]",
+        r"[\p{P}]",
+    ]),
+    r"|".join([
+        r"[\x{4E00}-\x{9FFF}]",
+        r"[\x{3400}-\x{4DBF}]",
+        r"[\x{20000}-\x{2A6DF}]",
+        r"[\x{2A700}-\x{2B73F}]",
+        r"[\x{2B740}-\x{2B81F}]",
+        r"[\x{2B820}-\x{2CEAF}]",
+        r"[\x{F900}-\x{FAFF}]",
+        r"[\x{2F800}-\x{2FA1F}]",
+    ]),
+]
+
+_DELIM_REGEX_PATTERN = "|".join(_DELIM_REGEX)
+_KEEP_DELIM_NO_WHITESPACE = copy.deepcopy(_DELIM_REGEX)
+_KEEP_DELIM_NO_WHITESPACE.remove(r"\s+")
+_UNUSED_TOKEN_REGEX = "\\[unused\\d+\\]"
+_KEEP_DELIM_NO_WHITESPACE_PATTERN = "|".join(_KEEP_DELIM_NO_WHITESPACE)
+
+
+class BasicTokenizer(TokenizerWithOffsets):
+  r"""Basic tokenizer for for tokenizing text.
 
   A basic tokenizer that tokenizes using some deterministic rules:
   - For most languages, this tokenizer will split on whitespace.
@@ -46,52 +76,47 @@ class BasicTokenizer(Tokenizer):
     keep_whitespace: bool - If true, preserves whitespace characters instead of
       stripping them away.
     normalization_form: If true and lower_case=False, the input text will be
-      normalized to `normalization_form`. See normalize_utf8() op for a list
-      of valid values.
+      normalized to `normalization_form`. See normalize_utf8() op for a list of
+      valid values.
+    preserve_unused_token: If true, text in the regex format "\\[unused\\d+\\]"
+      will be treated as a token and thus remain preserved as is to be looked up
+      in the vocabulary.
   """
 
   def __init__(self,
                lower_case=False,
                keep_whitespace=False,
-               normalization_form=None):
+               normalization_form=None,
+               preserve_unused_token=False):
     self._lower_case = lower_case
-    self._keep_whitespace = keep_whitespace
+    if not keep_whitespace:
+      self._keep_delim_regex_pattern = _KEEP_DELIM_NO_WHITESPACE_PATTERN
+    else:
+      self._keep_delim_regex_pattern = _DELIM_REGEX_PATTERN
+
+    if lower_case and normalization_form not in [None, "NFD"]:
+      raise ValueError("`lower_case` strips accents. When `lower_case` is set "
+                       "`normalization_form` is 'NFD'.")
     self._normalization_form = normalization_form
 
-  def _is_cjk(self, script_ids):
-    is_chinese = math_ops.logical_or(
-        math_ops.equal(script_ids, 17),  # Han (Chinese) script
-        math_ops.equal(script_ids, 74))  # Traditional Han (Chinese) script
-    is_korean = math_ops.logical_or(
-        math_ops.equal(script_ids, 119),  # Korean script
-        math_ops.equal(script_ids, 18))
-    return math_ops.logical_or(
-        is_chinese,
-        math_ops.logical_or(
-            math_ops.equal(script_ids, 105),  # Japanese script
-            is_korean))
+    if preserve_unused_token:
+      self._delim_regex_pattern = "|".join(
+          [_UNUSED_TOKEN_REGEX, _DELIM_REGEX_PATTERN])
+      self._keep_delim_regex_pattern = "|".join(
+          [_UNUSED_TOKEN_REGEX, self._keep_delim_regex_pattern])
+    else:
+      self._delim_regex_pattern = _DELIM_REGEX_PATTERN
 
-  def _should_split(self, script_tokenized):
-    token_script_ids = string_ops.unicode_script(
-        ragged_string_ops.unicode_decode(script_tokenized.flat_values,
-                                         "UTF-8"))[:, :1]
-
-    token_script_ids_flat = token_script_ids.flat_values
-    is_cjk = self._is_cjk(token_script_ids_flat)
-    is_emoji = wordshape_ops.wordshape(script_tokenized.flat_values,
-                                       wordshape_ops.WordShape.HAS_EMOJI)
-    is_punct = wordshape_ops.wordshape(
-        script_tokenized.flat_values,
-        wordshape_ops.WordShape.IS_PUNCT_OR_SYMBOL)
-    split_cond = is_cjk | is_emoji | is_punct
-    return split_cond
-
-  # TODO(thuang513): add support for tokenize_with_offsets()
   def tokenize(self, text_input):
+    tokens, _, _ = self.tokenize_with_offsets(text_input)
+    return tokens
+
+  def tokenize_with_offsets(self, text_input):
     """Performs basic word tokenization for BERT.
 
     Args:
       text_input: A `Tensor` or `RaggedTensor` of untokenized UTF-8 strings.
+
     Returns:
       A `RaggedTensor` of tokenized strings from text_input.
     """
@@ -107,36 +132,24 @@ class BasicTokenizer(Tokenizer):
 
     # strip out control characters
     text_input = string_ops.regex_replace(text_input, r"\p{Cc}|\p{Cf}", " ")
-
-    # For chinese and emoji characters, tokenize by unicode codepoints
-    unicode_tokenizer = UnicodeScriptTokenizer(
-        keep_whitespace=self._keep_whitespace)
-    script_tokenized = unicode_tokenizer.tokenize(text_input)
-
-    split_cond = self._should_split(script_tokenized)
-
-    unicode_char_split = ragged_string_ops.unicode_split(
-        script_tokenized, "UTF-8")
-    unicode_split_tokens = array_ops.where(
-        array_ops.squeeze(split_cond),
-        y=array_ops.expand_dims(script_tokenized.values, axis=1),
-        x=unicode_char_split.values)
-    final_tokens = script_tokenized.with_flat_values(unicode_split_tokens)
-    return final_tokens.merge_dims(-2, -1)
+    return regex_split_ops.regex_split_with_offsets(
+        text_input, self._delim_regex_pattern, self._keep_delim_regex_pattern,
+        "BertBasicTokenizer")
 
 
-class BertTokenizer(Tokenizer):
-  """Tokenizer used for BERT.
+class BertTokenizer(TokenizerWithOffsets):
+  r"""Tokenizer used for BERT.
 
     This tokenizer applies an end-to-end, text string to wordpiece tokenization.
-    It first applies basic tokenization, and then follwed by wordpiece
+    It first applies basic tokenization, and then followed by wordpiece
     tokenization.
 
     See BasicTokenizer and WordpieceTokenizer for their respective details.
 
   Attributes:
     vocab_lookup_table: A lookup table implementing the LookupInterface
-      containing the vocabulary of subwords.
+      containing the vocabulary of subwords or a string which is the file path
+      to the vocab.txt file.
     suffix_indicator: (optional) The characters prepended to a wordpiece to
       indicate that it is a suffix to another subword. Default is '##'.
     max_bytes_per_word: (optional) Max size of input token. Default is 100.
@@ -148,8 +161,8 @@ class BertTokenizer(Tokenizer):
     unknown_token: (optional) The value to use when an unknown token is found.
       Default is "[UNK]". If this is set to a string, and `token_out_type` is
       `tf.int64`, the `vocab_lookup_table` is used to convert the
-      `unknown_token` to an integer. If this is set to `None`,
-      out-of-vocabulary tokens are left as is.
+      `unknown_token` to an integer. If this is set to `None`, out-of-vocabulary
+      tokens are left as is.
     split_unknown_characters: (optional) Whether to split out single unknown
       characters as subtokens. If False (default), words containing unknown
       characters will be treated as single unknown tokens.
@@ -158,8 +171,11 @@ class BertTokenizer(Tokenizer):
     keep_whitespace: bool - If true, preserves whitespace characters instead of
       stripping them away.
     normalization_form: If true and lower_case=False, the input text will be
-      normalized to `normalization_form`. See normalize_utf8() op for a list
-      of valid values.
+      normalized to `normalization_form`. See normalize_utf8() op for a list of
+      valid values.
+    preserve_unused_token: If true, text in the regex format `\\[unused\\d+\\]`
+      will be treated as a token and thus remain preserved as is to be looked up
+      in the vocabulary.
   """
 
   def __init__(self,
@@ -172,13 +188,27 @@ class BertTokenizer(Tokenizer):
                split_unknown_characters=False,
                lower_case=False,
                keep_whitespace=False,
-               normalization_form=None):
+               normalization_form=None,
+               preserve_unused_token=False):
+    super(BertTokenizer, self).__init__()
+    _tf_text_bert_tokenizer_op_create_counter.get_cell().increase_by(1)
+
     self._basic_tokenizer = BasicTokenizer(lower_case, keep_whitespace,
-                                           normalization_form)
+                                           normalization_form,
+                                           preserve_unused_token)
     self._wordpiece_tokenizer = WordpieceTokenizer(
         vocab_lookup_table, suffix_indicator, max_bytes_per_word,
         max_chars_per_token, token_out_type, unknown_token,
         split_unknown_characters)
+
+  def tokenize_with_offsets(self, text_input):
+    tokens, begin, _ = self._basic_tokenizer.tokenize_with_offsets(text_input)
+    wordpieces, wp_begin, wp_end = (
+        self._wordpiece_tokenizer.tokenize_with_offsets(tokens))
+    begin_expanded = array_ops.expand_dims(begin, axis=2)
+    final_begin = begin_expanded + wp_begin
+    final_end = begin_expanded + wp_end
+    return wordpieces, final_begin, final_end
 
   def tokenize(self, text_input):
     """Performs untokenized text to wordpiece tokenization for BERT.
@@ -186,6 +216,7 @@ class BertTokenizer(Tokenizer):
     Args:
       text_input: input: A `Tensor` or `RaggedTensor` of untokenized UTF-8
         strings.
+
     Returns:
       A `RaggedTensor` of tokens where `tokens[i1...iN, j]` is the string
       contents (or ID in the vocab_lookup_table representing that string)

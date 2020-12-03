@@ -1,4 +1,4 @@
-// Copyright 2019 TF.Text Authors.
+// Copyright 2020 TF.Text Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -45,7 +45,7 @@ bool IsPeriodSeparatedAcronym(const Token &token) {
 // token sequence.
 Status SpaceAllowedBeforeToken(const UnicodeUtil *util, const Token &token,
                                bool *result) {
-  const string &word = token.word();
+  const tstring &word = token.word();
   bool is_ellipsis = false;
   TF_RETURN_IF_ERROR(util->IsEllipsis(word, &is_ellipsis));
 
@@ -80,7 +80,7 @@ class SentenceFragmenter::FragmentBoundaryMatch {
   Status Advance(const UnicodeUtil *util, const Document &document, int index,
                  bool *result) {
     const Token &token = document.tokens()[index];
-    const string &word = token.word();
+    const tstring &word = token.word();
     bool no_transition = false;
 
     bool is_terminal_punc = false;
@@ -220,7 +220,7 @@ Status SentenceFragmenter::FindNextFragmentBoundary(
   FragmentBoundaryMatch current_match;
   FragmentBoundaryMatch previous_match;
 
-  for (int i = i_start; i < document_->tokens().size(); ++i) {
+  for (int i = i_start; i < static_cast<int>(document_->tokens().size()); ++i) {
     const auto &token = document_->tokens()[i];
     if (current_match.GotTerminalPunc() && i > i_start &&
         token.break_level() >= Token::SPACE_BREAK) {
